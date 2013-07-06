@@ -23,10 +23,19 @@ References:
 
 var fs = require('fs');
 var program = require('commander');
-var cheerio = require('cheerio');
+var cheerio = require('cheerio'); //jquery parsing html
+var rest = require('restler');
+
 var HTMLFILE_DEFAULT = "index.html";
+
+var HTMLURL_DEFAULT = "http://shrouded-crag-6793.herokuapp.com";
+var HTMLURLFILE_DEFAULT = "url_file_defualt.html";
+
 var CHECKSFILE_DEFAULT = "checks.json";
 
+
+
+//check existence 
 var assertFileExists = function(infile) {
     var instr = infile.toString();
     if(!fs.existsSync(instr)) {
@@ -36,10 +45,42 @@ var assertFileExists = function(infile) {
     return instr;
 };
 
+
+
+
+var assertURLValid = function(infile) {
+    var instr = infile.toString();
+    rest.get(instr).on('complete', function(result, response) {
+        //if(result instanceof Error) {
+        if (response.statusCode == 400) {
+            console.error('Error: 400 Bad Request!'); 
+            process.exit(1);
+        }
+        else {
+            fs.writeFileSync(HTMLURLFILE_DEFAULT, result);
+            check_wrapper(HTMLURLFILE_DEFAULT, program.checks);
+        }
+    });
+    return instr;
+};
+
+// if we can go into here, then url is valid
+var processURL = function(inurl, checkfile) {
+    rest.get(inurl).on('complete', function(result2) {
+        fs.writeFileSync(HTMLURLFILE_DEFAULT, result2);
+        //serize
+        check_wrapper(HTMLURLFILE_DEFAULT, checkfile);
+    });
+}
+
+
+
+//load html
 var cheerioHtmlFile = function(htmlfile) {
     return cheerio.load(fs.readFileSync(htmlfile));
 };
 
+//load checks
 var loadChecks = function(checksfile) {
     return JSON.parse(fs.readFileSync(checksfile));
 };
@@ -61,14 +102,40 @@ var clone = function(fn) {
     return fn.bind({});
 };
 
+
+var check_wrapper = function(filename, checkfilename) {
+    var checkJson = checkHtmlFile(filename, checkfilename); //argv stored at program.file, program.checks
+    var outJson = JSON.stringify(checkJson, null, 4); //format json
+    console.log(outJson);
+};
+
 if(require.main == module) {
     program
+        //defualt
+        /*
         .option('-c, --checks <check_file>', 'Path to checks.json', clone(assertFileExists), CHECKSFILE_DEFAULT)
         .option('-f, --file <html_file>', 'Path to index.html', clone(assertFileExists), HTMLFILE_DEFAULT)
+        .option('-u, --url <html_url>', 'url to index.html', clone(assertURLValid), HTMLURL_DEFAULT)
         .parse(process.argv);
-    var checkJson = checkHtmlFile(program.file, program.checks);
-    var outJson = JSON.stringify(checkJson, null, 4);
-    console.log(outJson);
+        */
+        .option('-c, --checks <check_file>', 'Path to checks.json', clone(assertFileExists), CHECKSFILE_DEFAULT)
+        .option('-f, --file <html_file>', 'Path to index.html', clone(assertFileExists))
+        .option('-u, --url <html_url>', 'url to index.html', clone(assertURLValid))
+        .parse(process.argv);
+
+    //(1) assume only one of -f or -u could be specifed
+    //    if can be here, then url and file are all valid
+    // 
+    //(2) assume the defualt file and url are exist or valid
+    //    
+    //(3) if -f or -u or -c are specified as invalid number, then it would safely existing
+    //    but if the default file or url is not exist or valid, there would be unhandled exception or error!
+    //if(program.url) {
+    //    processURL(program.url, program.checks);
+    //}
+    if(program.file) {
+        check_wrapper(program.file, program.checks);
+    }
 } else {
     exports.checkHtmlFile = checkHtmlFile;
 }
