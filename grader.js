@@ -46,8 +46,8 @@ var assertFileExists = function(infile) {
 };
 
 
-
-
+//assert or validate the url and write the url into disk if it is valid
+//then try to check the html tags
 var assertURLValid = function(infile) {
     var instr = infile.toString();
     rest.get(instr).on('complete', function(result, response) {
@@ -58,22 +58,11 @@ var assertURLValid = function(infile) {
         }
         else {
             fs.writeFileSync(HTMLURLFILE_DEFAULT, result);
-            check_wrapper(HTMLURLFILE_DEFAULT, program.checks);
+            check_wrapper(HTMLURLFILE_DEFAULT, program.checks); //because program is globally accessible
         }
     });
     return instr;
 };
-
-// if we can go into here, then url is valid
-var processURL = function(inurl, checkfile) {
-    rest.get(inurl).on('complete', function(result2) {
-        fs.writeFileSync(HTMLURLFILE_DEFAULT, result2);
-        //serize
-        check_wrapper(HTMLURLFILE_DEFAULT, checkfile);
-    });
-}
-
-
 
 //load html
 var cheerioHtmlFile = function(htmlfile) {
@@ -102,7 +91,6 @@ var clone = function(fn) {
     return fn.bind({});
 };
 
-
 var check_wrapper = function(filename, checkfilename) {
     var checkJson = checkHtmlFile(filename, checkfilename); //argv stored at program.file, program.checks
     var outJson = JSON.stringify(checkJson, null, 4); //format json
@@ -111,13 +99,6 @@ var check_wrapper = function(filename, checkfilename) {
 
 if(require.main == module) {
     program
-        //defualt
-        /*
-        .option('-c, --checks <check_file>', 'Path to checks.json', clone(assertFileExists), CHECKSFILE_DEFAULT)
-        .option('-f, --file <html_file>', 'Path to index.html', clone(assertFileExists), HTMLFILE_DEFAULT)
-        .option('-u, --url <html_url>', 'url to index.html', clone(assertURLValid), HTMLURL_DEFAULT)
-        .parse(process.argv);
-        */
         .option('-c, --checks <check_file>', 'Path to checks.json', clone(assertFileExists), CHECKSFILE_DEFAULT)
         .option('-f, --file <html_file>', 'Path to index.html', clone(assertFileExists))
         .option('-u, --url <html_url>', 'url to index.html', clone(assertURLValid))
